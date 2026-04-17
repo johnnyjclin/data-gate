@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.datagate.poller</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <!-- 將下方路徑替換為你的實際專案路徑 -->
+    <string>/Users/YOUR_USERNAME/Documents/DataGate/scripts/poll.sh</string>
+  </array>
+
+  <!-- 每 6 小時執行一次（單位：秒） -->
+  <key>StartInterval</key>
+  <integer>21600</integer>
+
+  <!-- log 輸出 -->
+  <key>StandardOutPath</key>
+  <string>/tmp/datagate-poller.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/datagate-poller-error.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

@@ -1,6 +1,6 @@
 # DataGate
 
-> 將 YouTube 影音內容自動轉化為結構化 Markdown 知識庫，部署在 GitHub Pages，供人與 AI Agent 存取。
+> 將 YouTube 影音內容自動轉化為結構化 Markdown 知識庫，透過 Claude Code 操作，本地 MkDocs 瀏覽。
 
 ---
 
@@ -8,18 +8,19 @@
 
 你丟一個 YouTube 影片連結，DataGate 會：
 
-1. 自動取得字幕（支援中文、英文）
-2. 用 GPT-4o 整理成結構化 Markdown（摘要、重點、逐字稿）
-3. 寫入 Git repo，GitHub Pages 自動更新網站
-4. 透過 RSS 定時監聽頻道，有新影片自動處理
+1. 用 **yt-dlp** 自動取得字幕（支援中文、英文）
+2. 用 **GPT-4o** 整理成結構化 Markdown（摘要、重點、逐字稿）
+3. 寫入本地 `docs/channels/` 目錄
+4. 透過 **MkDocs** 在本機瀏覽知識庫
+5. RSS 定時輪詢頻道，有新片自動處理
 
-**Pipeline 示意：**
+**Pipeline：**
 ```
 YouTube URL
   → yt-dlp 取字幕
   → GPT-4o 結構化整理
-  → Markdown 寫入 docs/
-  → git push → GitHub Pages 自動更新
+  → Markdown 寫入 docs/channels/
+  → mkdocs serve 本地瀏覽
 ```
 
 ---
@@ -30,7 +31,7 @@ YouTube URL
 
 ```bash
 git clone https://github.com/johnnyjclin/data-gate.git
-cd datagate
+cd data-gate
 pip install -r requirements.txt
 ```
 
@@ -40,43 +41,114 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-編輯 `.env`，填入你的 GitHub Personal Access Token：
+編輯 `.env`，填入你的 GitHub Personal Access Token（用於呼叫 GitHub Models GPT-4o）：
 
 ```env
 GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+LLM_MODEL=gpt-4o-mini
 ```
 
-> 取得 Token：GitHub → Settings → Developer settings → Personal access tokens → 勾選 `read:user` 即可
+> 取得 Token：GitHub → Settings → Developer settings → Personal access tokens (classic)
 
-### 3. 跑第一支影片
+---
+
+## 用 Claude Code 操作
+
+在 Claude Code 中使用以下 slash commands：
+
+| Command | 功能 |
+|---|---|
+| `/project:ingest` | 解析單支 YouTube 影片 |
+| `/project:subscribe` | 訂閱 YouTube 頻道（RSS）|
+| `/project:poll` | 手動拉取所有頻道新影片 |
+| `/project:serve` | 啟動本地預覽網站 |
+
+**範例對話：**
+```
+解析這支影片 https://www.youtube.com/watch?v=VIDEO_ID
+```
+Claude Code 會自動執行 `python pipeline/ingest.py --url ...`
+
+---
+
+## 指令操作（手動）
+
+### 解析單支影片
+```bash
+python pipeline/ingest.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
+python pipeline/ingest.py --url "..." --channel my-channel  # 指定頻道 slug
+python pipeline/ingest.py --url "..." --dry-run              # 預覽不寫檔
+```
+
+### 訂閱頻道
+```bash
+python pipeline/add_channel.py --url "https://www.youtube.com/@ChannelName"
+```
+
+### 手動 RSS 輪詢
+```bash
+python pipeline/rss_poller.py
+```
+
+### 本地預覽網站
+```bash
+mkdocs serve
+# 瀏覽 http://127.0.0.1:8000
+```
+
+---
+
+## RSS 自動輪詢（本機排程）
+
+設定 macOS LaunchAgent 讓 RSS 輪詢每 6 小時自動執行：
 
 ```bash
-python pipeline/ingest.py --url 'https://www.youtube.com/watch?v=VIDEO_ID'
+# 複製 plist 到 LaunchAgents
+cp scripts/com.datagate.poller.plist ~/Library/LaunchAgents/
+
+# 編輯 plist，將路徑替換為你的實際路徑
+nano ~/Library/LaunchAgents/com.datagate.poller.plist
+
+# 載入並啟動
+launchctl load ~/Library/LaunchAgents/com.datagate.poller.plist
 ```
 
-加上 `--dry-run` 可預覽輸出，不寫入檔案：
-
+停止排程：
 ```bash
-python pipeline/ingest.py --url 'https://www.youtube.com/watch?v=VIDEO_ID' --dry-run
+launchctl unload ~/Library/LaunchAgents/com.datagate.poller.plist
 ```
 
-指定頻道 slug（選填，不指定會自動從頻道名稱產生）：
+---
 
-```bash
-python pipeline/ingest.py --url 'https://...' --channel xrex
+## 專案結構
+
+```
+pipeline/
+  ingest.py        # 主入口：URL → 字幕 → LLM → Markdown
+  youtube.py       # yt-dlp 取字幕 + 影片資訊
+  llm.py           # GitHub Models GPT-4o 整理逐字稿
+  add_channel.py   # 註冊頻道 + 建立 channels.json 記錄
+  rss_poller.py    # 輪詢所有頻道 RSS，自動 ingest 新影片
+scripts/
+  poll.sh                      # RSS 輪詢包裝腳本
+  com.datagate.poller.plist    # macOS LaunchAgent 範本
+docs/
+  channels/        # 本地生成，不上傳 git
+data/
+  channels.json    # 訂閱頻道清單
+.claude/
+  commands/        # Claude Code slash commands
+CLAUDE.md          # Claude Code 操作說明
 ```
 
-### 4. 訂閱頻道 RSS（自動追蹤新片）
+---
 
-```bash
-# 用 YouTube Channel ID
-python pipeline/add_channel.py --slug xrex --name "XREX" --youtube-channel-id UCxxxxxxxxxx
+## 注意事項
 
-# 或直接提供 RSS URL
-python pipeline/add_channel.py --slug xrex --name "XREX" --rss "https://www.youtube.com/feeds/videos.xml?channel_id=UCxxxxxxxxxx"
-```
+- `docs/channels/` 為本地生成內容，已加入 `.gitignore`，不會上傳 Git
+- `GITHUB_TOKEN` 每日免費額度 150 次 LLM 呼叫
+- 影片需有字幕（人工或自動生成），否則跳過
 
-之後 GitHub Actions 每 6 小時會自動拉新片。
 
 ### 5. 本地預覽網站
 

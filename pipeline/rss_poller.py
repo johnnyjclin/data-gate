@@ -1,8 +1,10 @@
 """
-rss_poller.py — 定時檢查所有頻道 RSS，自動 ingest 新影片
+rss_poller.py — 檢查所有訂閱頻道 RSS，自動 ingest 新影片
 
-由 GitHub Actions Cron Job 呼叫：
-  python pipeline/rss_poller.py
+執行方式：
+  python pipeline/rss_poller.py          # 手動執行
+  bash scripts/poll.sh                   # 透過包裝腳本
+  launchctl（macOS）定時自動呼叫          # 見 scripts/com.datagate.poller.plist
 
 流程：
   1. 讀取 data/channels.json 中所有頻道
