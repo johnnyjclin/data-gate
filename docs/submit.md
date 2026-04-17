@@ -238,13 +238,20 @@ async function dgDispatch(workflow, inputs) {
          <a href="https://github.com/${DG_REPO_OWNER}/${DG_REPO_NAME}/actions" target="_blank">查看執行進度 →</a>`,
         'success'
       );
-    } else if (res.status === 401) {
-      dgShowStatus('❌ Token 無效或已過期，請重新設定', 'error');
-    } else if (res.status === 403) {
-      dgShowStatus('❌ Token 缺少 <code>workflow</code> 權限，請重新建立', 'error');
     } else {
       const body = await res.json().catch(() => ({}));
-      dgShowStatus(`❌ 錯誤 ${res.status}：${body.message || '未知錯誤'}`, 'error');
+      const detail = body.message || '未知錯誤';
+      let hint = '';
+      if (res.status === 401) {
+        hint = '→ Token 無效或已過期，請重新設定';
+      } else if (res.status === 403) {
+        hint = '→ Token 缺少 <code>workflow</code> 權限，或此 repo 未開啟 Actions';
+      } else if (res.status === 404) {
+        hint = '→ Repo 或 workflow 檔案找不到，確認 repo 名稱正確';
+      } else if (res.status === 422) {
+        hint = '→ workflow_dispatch 設定問題，確認 workflow 已存在於 main branch';
+      }
+      dgShowStatus(`❌ HTTP ${res.status}：<code>${detail}</code><br><small>${hint}</small>`, 'error');
     }
   } catch (e) {
     dgShowStatus(`❌ 網路錯誤：${e.message}`, 'error');
