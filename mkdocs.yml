@@ -1,0 +1,67 @@
+site_name: DataGate 知識庫
+site_description: 將影音內容轉化為結構化知識，供人與 AI Agent 存取
+site_url: https://your-github-username.github.io/datagate
+repo_url: https://github.com/your-github-username/datagate
+repo_name: datagate
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: zh-TW
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切換深色模式
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切換淺色模式
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+  - tags
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/your-github-username/datagate
+
+nav:
+  - 首頁: index.md
+  - 頻道:
+      - channels/index.md
