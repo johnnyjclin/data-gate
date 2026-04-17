@@ -24,7 +24,7 @@ jobs:
 
       - name: Install system dependencies (yt-dlp)
         run: |
-          pip install --upgrade yt-dlp feedparser openai python-dotenv
+          pip install youtube-transcript-api feedparser openai python-dotenv requests
 
       - name: Run RSS poller
         env:

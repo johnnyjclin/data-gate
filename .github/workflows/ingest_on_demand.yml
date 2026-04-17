@@ -30,7 +30,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install --upgrade yt-dlp openai python-dotenv
+        run: pip install youtube-transcript-api openai python-dotenv requests
 
       - name: Run ingest pipeline
         env:
