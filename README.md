@@ -1,23 +1,24 @@
 # DataGate
 
-> 將 YouTube 影音內容自動轉化為結構化 Markdown 知識庫，透過 Claude Code 操作，本地 MkDocs 瀏覽。
+> 將 YouTube 影音內容自動轉化為結構化 Markdown 知識庫，透過 Claude 操作，本地 MkDocs 瀏覽。
 
 ---
 
 ## 這是什麼？
 
-你丟一個 YouTube 影片連結，DataGate 會：
+DataGate 是一個本地知識庫工具。你丟一個 YouTube 影片連結，它會：
 
-1. 用 **yt-dlp** 自動取得字幕（支援中文、英文）
+1. 用 **yt-dlp** 自動下載字幕（支援中文、英文，人工或自動字幕）
 2. 用 **GPT-4o** 整理成結構化 Markdown（摘要、重點、逐字稿）
 3. 寫入本地 `docs/channels/` 目錄
 4. 透過 **MkDocs** 在本機瀏覽知識庫
-5. RSS 定時輪詢頻道，有新片自動處理
+
+所有生成的 Markdown 文章只存在本機（`docs/channels/` 已加入 `.gitignore`），**不會上傳至 Git**。
 
 **Pipeline：**
 ```
 YouTube URL
-  → yt-dlp 取字幕
+  → yt-dlp 下載字幕
   → GPT-4o 結構化整理
   → Markdown 寫入 docs/channels/
   → mkdocs serve 本地瀏覽
@@ -48,49 +49,84 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 LLM_MODEL=gpt-4o-mini
 ```
 
-> 取得 Token：GitHub → Settings → Developer settings → Personal access tokens (classic)
+> 取得 Token：GitHub → Settings → Developer settings → Personal access tokens
+
+### 3. 確認 yt-dlp 已安裝
+
+```bash
+brew install yt-dlp   # macOS
+# 或 pip install yt-dlp
+```
 
 ---
 
-## 用 Claude Code 操作
+## 使用方式（Claude 操作）
 
-在 Claude Code 中使用以下 slash commands：
+所有操作以 Claude 為主。在 Claude Code 中使用 slash commands：
 
 | Command | 功能 |
 |---|---|
 | `/project:ingest` | 解析單支 YouTube 影片 |
 | `/project:subscribe` | 訂閱 YouTube 頻道（RSS）|
-| `/project:poll` | 手動拉取所有頻道新影片 |
+| `/project:poll` | 拉取所有訂閱頻道新影片 |
 | `/project:serve` | 啟動本地預覽網站 |
 
-**範例對話：**
+### 範例對話
+
 ```
 解析這支影片 https://www.youtube.com/watch?v=VIDEO_ID
+
+訂閱這個頻道 https://www.youtube.com/@ChannelName
+
+執行 poll 抓最新影片
+
+啟動 mkdocs 預覽
 ```
-Claude Code 會自動執行 `python pipeline/ingest.py --url ...`
 
 ---
 
-## 指令操作（手動）
+## 手動指令
 
-### 解析單支影片
+### 解析單支影片（ingest）
+
 ```bash
 python pipeline/ingest.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
 python pipeline/ingest.py --url "..." --channel my-channel  # 指定頻道 slug
 python pipeline/ingest.py --url "..." --dry-run              # 預覽不寫檔
 ```
 
-### 訂閱頻道
+- 自動下載字幕（優先人工字幕，其次自動字幕）
+- 用 GPT-4o 整理為結構化 Markdown
+- 存入 `docs/channels/{slug}/{video_id}.md`
+- **如果該影片已存在，自動跳過**
+
+### 訂閱頻道（subscribe）
+
 ```bash
 python pipeline/add_channel.py --url "https://www.youtube.com/@ChannelName"
+python pipeline/add_channel.py --url "https://www.youtube.com/feeds/videos.xml?channel_id=UCxxx"
+python pipeline/add_channel.py --url "..." --slug custom-slug --name "自訂名稱"
 ```
 
-### 手動 RSS 輪詢
+- 支援 YouTube 頻道 URL 或直接輸入 RSS feed URL
+- 自動偵測頻道名稱、建立 RSS 追蹤
+- 將頻道資訊寫入 `data/channels.json`
+- 建立 `docs/channels/{slug}/` 目錄
+
+### RSS 輪詢（poll）
+
 ```bash
 python pipeline/rss_poller.py
 ```
 
+- 讀取 `data/channels.json` 中所有訂閱頻道
+- 拉取 RSS feed，比對已有影片 ID
+- 新影片自動執行 ingest pipeline
+- 每個頻道每次最多處理 5 支新影片
+- 已存在的影片自動跳過
+
 ### 本地預覽網站
+
 ```bash
 mkdocs serve
 # 瀏覽 http://127.0.0.1:8000
@@ -98,100 +134,31 @@ mkdocs serve
 
 ---
 
-## RSS 自動輪詢（本機排程）
-
-設定 macOS LaunchAgent 讓 RSS 輪詢每 6 小時自動執行：
-
-```bash
-# 複製 plist 到 LaunchAgents
-cp scripts/com.datagate.poller.plist ~/Library/LaunchAgents/
-
-# 編輯 plist，將路徑替換為你的實際路徑
-nano ~/Library/LaunchAgents/com.datagate.poller.plist
-
-# 載入並啟動
-launchctl load ~/Library/LaunchAgents/com.datagate.poller.plist
-```
-
-停止排程：
-```bash
-launchctl unload ~/Library/LaunchAgents/com.datagate.poller.plist
-```
-
----
-
 ## 專案結構
 
 ```
-pipeline/
-  ingest.py        # 主入口：URL → 字幕 → LLM → Markdown
-  youtube.py       # yt-dlp 取字幕 + 影片資訊
-  llm.py           # GitHub Models GPT-4o 整理逐字稿
-  add_channel.py   # 註冊頻道 + 建立 channels.json 記錄
-  rss_poller.py    # 輪詢所有頻道 RSS，自動 ingest 新影片
-scripts/
-  poll.sh                      # RSS 輪詢包裝腳本
-  com.datagate.poller.plist    # macOS LaunchAgent 範本
-docs/
-  channels/        # 本地生成，不上傳 git
-data/
-  channels.json    # 訂閱頻道清單
-.claude/
-  commands/        # Claude Code slash commands
-CLAUDE.md          # Claude Code 操作說明
-```
-
----
-
-## 注意事項
-
-- `docs/channels/` 為本地生成內容，已加入 `.gitignore`，不會上傳 Git
-- `GITHUB_TOKEN` 每日免費額度 150 次 LLM 呼叫
-- 影片需有字幕（人工或自動生成），否則跳過
-
-
-### 5. 本地預覽網站
-
-```bash
-pip install mkdocs-material
-mkdocs serve
-# 開啟 http://localhost:8000
-```
-
-### 6. 部署到 GitHub Pages
-
-```bash
-git add .
-git commit -m "init: first articles"
-git push
-```
-
-Push 後 GitHub Actions 自動 build 並部署：`https://your-username.github.io/datagate/`
-
----
-
-## 專案結構
-
-```
-datagate/
+DataGate/
 ├── pipeline/
-│   ├── ingest.py          # 主入口：URL → Markdown
-│   ├── youtube.py         # yt-dlp 字幕擷取
-│   ├── llm.py             # GitHub Models GPT-4o 結構化
-│   ├── add_channel.py     # 登錄頻道 + 設定 RSS 監聽
-│   └── rss_poller.py      # Cron Job：定時拉新片
+│   ├── ingest.py          # 主入口：URL → 字幕 → LLM → Markdown
+│   ├── youtube.py         # yt-dlp 下載字幕 + 取影片資訊
+│   ├── llm.py             # GitHub Models GPT-4o 結構化整理
+│   ├── add_channel.py     # 訂閱頻道 + 建立 RSS 追蹤
+│   └── rss_poller.py      # 輪詢所有頻道 RSS，自動 ingest
 ├── docs/
-│   ├── index.md           # 網站首頁
-│   └── channels/
+│   ├── index.md           # MkDocs 網站首頁
+│   └── channels/          # 本地生成，不上傳 Git
 │       └── {slug}/
 │           ├── index.md   # 頻道首頁（集數列表）
-│           └── {video_id}.md  # 單集完整內容
+│           └── {video_id}.md
 ├── data/
-│   └── channels.json      # 已登錄頻道與 RSS 設定
-├── .github/workflows/
-│   ├── deploy.yml         # Push main → 自動建站
-│   └── rss_poller.yml     # 每 6 小時自動拉新片
+│   └── channels.json      # 訂閱頻道清單
+├── .claude/
+│   └── commands/          # Claude Code slash commands
+├── scripts/
+│   ├── poll.sh            # RSS 輪詢包裝腳本（選用）
+│   └── com.datagate.poller.plist  # macOS 定時排程（選用）
 ├── mkdocs.yml             # MkDocs Material 設定
+├── CLAUDE.md              # Claude Code 操作指南
 └── requirements.txt
 ```
 
@@ -211,15 +178,12 @@ datagate/
 
 ---
 
-## GitHub Actions 設定
+## 注意事項
 
-需要在 repo 的 **Settings → Secrets and variables → Actions** 加入：
-
-| Secret 名稱 | 說明 |
-|-------------|------|
-| `GH_MODELS_TOKEN` | GitHub Personal Access Token（用於 GPT-4o API） |
-
-`GITHUB_TOKEN` 是 Actions 內建的，不需要另外設定（用於 `git push` 和部署）。
+- `docs/channels/` 為本地生成內容，已加入 `.gitignore`，**不會上傳 Git**
+- 影片需有字幕（人工或自動生成），否則跳過
+- `GITHUB_TOKEN` 每日免費額度 150 次 LLM 呼叫
+- 重複影片自動偵測跳過，不會重複處理
 
 ---
 
@@ -227,44 +191,40 @@ datagate/
 
 | 項目 | 費用 |
 |------|------|
-| GitHub Pages | 免費 |
-| GitHub Actions | 免費（每月 2000 分鐘） |
-| GitHub Models GPT-4o | 免費（150 req/day，每天 reset） |
+| GitHub Models GPT-4o | 免費（150 req/day） |
 | yt-dlp 字幕 | 免費 |
+| MkDocs 本地瀏覽 | 免費 |
 | **總計** | **$0** |
-
-> 若影片沒有字幕才需要 Whisper API（$0.006/分鐘）。大多數有字幕的影片完全免費。
 
 ---
 
 ## Roadmap
 
-### Phase 1 — MVP ✅（目前）
+### Phase 1 — 本地知識庫 ✅（目前）
 - [x] YouTube URL → Markdown pipeline
 - [x] yt-dlp 字幕擷取（中英文優先）
 - [x] GitHub Models GPT-4o 結構化整理
-- [x] MkDocs Material 網站（全文搜尋、標籤）
-- [x] GitHub Pages 自動部署
-- [x] RSS Poller（GitHub Actions Cron，每 6 小時）
-- [x] 頻道 White Label 路徑（`/channels/{slug}/`）
+- [x] MkDocs Material 本地知識庫（全文搜尋、標籤）
+- [x] RSS 頻道訂閱與自動輪詢
+- [x] 重複影片自動跳過
+- [x] Claude Code slash commands 整合
 
-### Phase 2 — 開放平台
-- [ ] Web UI：使用者可直接在網頁提交 YouTube URL
-- [ ] Whisper API fallback（無字幕影片支援）
-- [ ] 自訂域名 White Label（CNAME，`knowledge.xrex.io`）
-- [ ] Export 功能（整包 Markdown 下載）
-- [ ] PDF 文件 parsing
+### Phase 2 — 內容強化
+- [ ] Whisper API fallback（無字幕影片 → 語音轉文字）
+- [ ] 支援音檔直接輸入（Podcast MP3）
 - [ ] 多語言字幕自動翻譯
+- [ ] 更精細的 tag 分類與搜尋
+- [ ] 批次匯入（一次處理多支影片）
 
 ### Phase 3 — AI Agent 生態
-- [ ] MCP Server（Cloudflare Workers）：AI Agent 可直接查詢知識庫
-- [ ] x402 付費 API：KOL 知識庫可選擇收費存取
+- [ ] MCP Server：AI Agent 可直接查詢知識庫
 - [ ] 向量搜尋（RAG）：語意搜尋跨頻道知識
-- [ ] 跨頻道知識交叉搜尋與比較
-- [ ] 市場調查：分析多頻道內容趨勢
+- [ ] 跨頻道知識交叉比較與趨勢分析
+- [ ] Export 功能（Markdown / PDF 匯出）
+- [ ] Web UI：本地網頁介面提交 URL
 
 ---
 
 ## 授權
 
-MIT License — 自由使用、修改、部署，歡迎 fork 自建。
+MIT License

@@ -2,14 +2,12 @@
 rss_poller.py — 檢查所有訂閱頻道 RSS，自動 ingest 新影片
 
 執行方式：
-  python pipeline/rss_poller.py          # 手動執行
-  bash scripts/poll.sh                   # 透過包裝腳本
-  launchctl（macOS）定時自動呼叫          # 見 scripts/com.datagate.poller.plist
+  python pipeline/rss_poller.py          # 手動或由 Claude 觸發
 
 流程：
   1. 讀取 data/channels.json 中所有頻道
   2. 拉取各頻道 RSS feed
-  3. 比對 last_video_id，找出新集數
+  3. 比對 docs/channels/{slug}/ 下已有的影片 ID，找出新集數
   4. 呼叫 ingest pipeline 處理新集數
   5. 更新 channels.json 的 last_video_id 與 last_checked
 """
@@ -26,6 +24,7 @@ load_dotenv()
 
 ROOT = Path(__file__).parent.parent
 CHANNELS_FILE = ROOT / "data" / "channels.json"
+DOCS_DIR = ROOT / "docs" / "channels"
 
 
 def load_channels() -> dict:
@@ -115,6 +114,13 @@ def main():
             video_id = extract_video_id(entry)
             title = entry.get("title", video_id)
             url = f"https://www.youtube.com/watch?v={video_id}"
+
+            # 檢查是否已存在（跳過重複）
+            existing_path = DOCS_DIR / slug / f"{video_id}.md"
+            if existing_path.exists():
+                print(f"   ⏭ 已存在，跳過：{video_id}")
+                channel["last_video_id"] = video_id
+                continue
 
             print(f"\n   ▶ 處理：{title}")
             success = ingest_video(url, slug)

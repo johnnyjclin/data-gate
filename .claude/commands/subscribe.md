@@ -2,23 +2,21 @@
 
 ## 使用方式
 
-用戶提供頻道 URL 或頻道名稱，執行以下步驟：
+用戶提供頻道 URL 或 RSS feed URL，執行以下步驟：
 
 1. 接受以下格式：
-   - `https://www.youtube.com/@ChannelHandle`
-   - `https://www.youtube.com/channel/UCxxxxx`
-   - 或純頻道名稱（會自動加上 `https://www.youtube.com/@`）
+   - `https://www.youtube.com/@ChannelHandle`（頻道頁面）
+   - `https://www.youtube.com/channel/UCxxxxx`（頻道頁面）
+   - `https://www.youtube.com/feeds/videos.xml?channel_id=UCxxx`（RSS feed）
 2. 執行：
    ```bash
-   python pipeline/add_channel.py --url "<頻道 URL>"
+   python pipeline/add_channel.py --url "<URL>"
    ```
-3. 成功後執行：
-   ```bash
-   git add data/ docs/ && git commit -m "subscribe: <頻道名稱>"
-   ```
+3. 如果用戶有指定 slug 或名稱，加上 `--slug <slug>` 或 `--name "名稱"`
 
 ## 說明
 
-- 訂閱後頻道資訊會寫入 `data/channels.json`
+- 自動偵測頻道名稱與 channel ID
+- 頻道資訊寫入 `data/channels.json`
+- 建立 `docs/channels/<slug>/` 目錄
 - 執行 `/project:poll` 可立即抓取該頻道的最新影片
-- 每個頻道會在 `docs/channels/<slug>/` 建立專屬目錄

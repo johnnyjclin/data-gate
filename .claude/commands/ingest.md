@@ -10,10 +10,6 @@
    python pipeline/ingest.py --url "<URL>"
    ```
 3. 如果用戶有指定頻道 slug，加上 `--channel <slug>`
-4. 執行成功後，執行：
-   ```bash
-   git add docs/ data/ && git commit -m "add: <影片標題>"
-   ```
 
 ## 常見問題
 

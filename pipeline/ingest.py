@@ -155,6 +155,12 @@ def main():
 
     slug = get_channel_slug(channel_name, args.channel)
 
+    # 檢查是否已存在（重複影片直接跳過）
+    existing_path = DOCS_DIR / slug / f"{video_id}.md"
+    if existing_path.exists() and not args.dry_run:
+        print(f"⏭  已存在，跳過：{existing_path.relative_to(ROOT)}")
+        sys.exit(0)
+
     print(f"📺 影片：{title}")
     print(f"📡 頻道：{channel_name} (slug: {slug})")
     print(f"⏱  時長：{duration}")
@@ -199,7 +205,6 @@ def main():
         print(f"\n🎉 完成！")
         print(f"   檔案：{output_path.relative_to(ROOT)}")
         print(f"   標籤：{', '.join(tags)}")
-        print(f"\n   下一步：git add . && git commit -m 'add: {title}' && git push")
 
 
 if __name__ == "__main__":
