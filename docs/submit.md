@@ -12,8 +12,8 @@
 </div>
 
 <div class="dg-hint">
-  Token 需要 <code>workflow</code> 權限。
-  <a href="https://github.com/settings/tokens/new?scopes=workflow&description=DataGate" target="_blank">點此快速建立 →</a>
+  需要 <strong>Classic PAT</strong>，勾選 <code>workflow</code> scope。Fine-grained token 不支援觸發 Actions。<br>
+  <a href="https://github.com/settings/tokens/new?scopes=workflow&description=DataGate+Token" target="_blank">點此建立 Classic PAT（已預選 workflow）→</a>
 </div>
 
 <div class="dg-tabs">
