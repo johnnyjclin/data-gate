@@ -29,7 +29,7 @@ YouTube URL
 ### 1. 安裝
 
 ```bash
-git clone https://github.com/your-username/datagate.git
+git clone https://github.com/johnnyjclin/data-gate.git
 cd datagate
 pip install -r requirements.txt
 ```

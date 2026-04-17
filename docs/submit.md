@@ -163,7 +163,7 @@
 
 <script>
 const DG_REPO_OWNER = 'johnnyjclin';
-const DG_REPO_NAME  = 'datagate';
+const DG_REPO_NAME  = 'data-gate';
 const DG_TOKEN_KEY  = 'dg_github_token';
 
 // 初始化：讀取已存的 token
