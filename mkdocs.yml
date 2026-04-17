@@ -1,8 +1,5 @@
 site_name: DataGate 知識庫
 site_description: 將影音內容轉化為結構化知識，供人與 AI Agent 存取
-site_url: https://johnnyjclin.github.io/data-gate
-repo_url: https://github.com/johnnyjclin/data-gate
-repo_name: data-gate
 
 docs_dir: docs
 site_dir: site
@@ -63,6 +60,5 @@ extra:
 
 nav:
   - 首頁: index.md
-  - 提交 / 訂閱: submit.md
   - 頻道:
       - channels/index.md
