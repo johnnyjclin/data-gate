@@ -13,6 +13,10 @@ import tempfile
 from pathlib import Path
 
 
+# YouTube 在 CI 環境（GitHub Actions）封鎖一般請求，需指定 android/ios player client 繞過
+_YT_EXTRACTOR_ARGS = "youtube:player_client=android,web"
+
+
 def get_video_info(url: str) -> dict:
     """取得影片基本資訊（標題、頻道、時長、發佈日期）"""
     result = subprocess.run(
@@ -20,6 +24,7 @@ def get_video_info(url: str) -> dict:
             "yt-dlp",
             "--dump-json",
             "--no-download",
+            "--extractor-args", _YT_EXTRACTOR_ARGS,
             url,
         ],
         capture_output=True,
@@ -61,6 +66,7 @@ def _download_subtitle(url: str, tmp_dir: str, lang: str, auto: bool) -> str | N
             "--sub-langs", lang,
             "--sub-format", "vtt",
             "--skip-download",
+            "--extractor-args", _YT_EXTRACTOR_ARGS,
             "--output", os.path.join(tmp_dir, "subtitle"),
             url,
         ],
