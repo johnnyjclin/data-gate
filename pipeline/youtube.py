@@ -13,8 +13,8 @@ import tempfile
 from pathlib import Path
 
 
-# YouTube 在 CI 環境（GitHub Actions）封鎖一般請求，需指定 android/ios player client 繞過
-_YT_EXTRACTOR_ARGS = "youtube:player_client=android,web"
+# tv client 不需要 PO token，在 CI 資料中心 IP 最穩定
+_YT_EXTRACTOR_ARGS = "youtube:player_client=tv,ios"
 
 
 def get_video_info(url: str) -> dict:
@@ -29,8 +29,13 @@ def get_video_info(url: str) -> dict:
         ],
         capture_output=True,
         text=True,
-        check=True,
     )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"yt-dlp failed (exit {result.returncode}):\n"
+            f"STDOUT: {result.stdout[:500]}\n"
+            f"STDERR: {result.stderr[:2000]}"
+        )
     return json.loads(result.stdout)
 
 
