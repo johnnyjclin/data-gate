@@ -1,94 +1,102 @@
 """
-youtube.py — 從 YouTube 影片取得字幕與影片資訊
+youtube.py — 從 YouTube 影片取得字幕或音檔轉文字
 
-使用 youtube-transcript-api（不需要 cookie / yt-dlp）直接呼叫 YouTube 內部 transcript API。
-影片基本資訊（標題、頻道）透過 YouTube oEmbed 端點取得（無需驗證）。
+優先順序：
+1. 取得官方字幕（繁中 zh-TW → 簡中 zh-Hans → 英文 en）
+2. 若無字幕，取得自動字幕（auto-generated）
+3. 若皆無，回傳 None（ingest.py 可選擇跳過）
 """
+import subprocess
+import json
+import os
 import re
-import requests
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
-
-
-_LANG_PRIORITY = ["zh-TW", "zh-Hant", "zh-Hans", "zh", "en"]
-
-
-def _extract_video_id(url: str) -> str:
-    match = re.search(r"[?&]v=([a-zA-Z0-9_-]{11})", url)
-    if match:
-        return match.group(1)
-    match = re.search(r"youtu\.be/([a-zA-Z0-9_-]{11})", url)
-    if match:
-        return match.group(1)
-    raise ValueError(f"無法從 URL 取得 video ID：{url}")
+import tempfile
+from pathlib import Path
 
 
 def get_video_info(url: str) -> dict:
-    """透過 oEmbed API 取得影片標題與頻道名稱（不需驗證）"""
-    video_id = _extract_video_id(url)
-    oembed_url = (
-        f"https://www.youtube.com/oembed"
-        f"?url=https://www.youtube.com/watch?v={video_id}&format=json"
+    """取得影片基本資訊（標題、頻道、時長、發佈日期）"""
+    result = subprocess.run(
+        ["yt-dlp", "--dump-json", "--no-download", url],
+        capture_output=True,
+        text=True,
     )
-    resp = requests.get(oembed_url, timeout=15)
-    resp.raise_for_status()
-    data = resp.json()
-    return {
-        "id": video_id,
-        "title": data.get("title", "Untitled"),
-        "channel": data.get("author_name", "Unknown"),
-        "uploader": data.get("author_name", "Unknown"),
-        "duration": 0,
-        "upload_date": "",
-    }
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"yt-dlp failed (exit {result.returncode}):\n"
+            f"STDOUT: {result.stdout[:500]}\n"
+            f"STDERR: {result.stderr[:2000]}"
+        )
+    return json.loads(result.stdout)
 
 
 def get_transcript(url: str, tmp_dir: str = None) -> str | None:
     """
-    取得字幕文字。優先使用人工字幕，其次自動字幕。
-    直接呼叫 YouTube transcript API，不需要 yt-dlp 或 cookie。
+    嘗試下載字幕，回傳純文字字幕內容。
+    優先使用人工字幕，其次自動字幕。
     """
-    video_id = _extract_video_id(url)
-    try:
-        transcript_list = YouTubeTranscriptApi().list(video_id)
+    if tmp_dir is None:
+        tmp_dir = tempfile.mkdtemp()
 
-        # 先找人工字幕
-        for lang in _LANG_PRIORITY:
-            try:
-                t = transcript_list.find_manually_created_transcript([lang])
-                return _format_segments(t.fetch())
-            except NoTranscriptFound:
-                continue
+    subtitle_langs = ["zh-TW", "zh-Hant", "zh-Hans", "zh", "en"]
 
-        # 再找自動字幕
-        for lang in _LANG_PRIORITY:
-            try:
-                t = transcript_list.find_generated_transcript([lang])
-                return _format_segments(t.fetch())
-            except NoTranscriptFound:
-                continue
+    for lang in subtitle_langs:
+        transcript = _download_subtitle(url, tmp_dir, lang, auto=False)
+        if transcript:
+            return transcript
 
-        # last resort：取任何可用字幕
-        try:
-            t = next(iter(transcript_list))
-            return _format_segments(t.fetch())
-        except StopIteration:
-            pass
-
-    except TranscriptsDisabled:
-        print("⚠️  此影片已停用字幕")
-    except Exception as e:
-        print(f"⚠️  取得字幕失敗：{e}")
+    for lang in subtitle_langs:
+        transcript = _download_subtitle(url, tmp_dir, lang, auto=True)
+        if transcript:
+            return transcript
 
     return None
 
 
-def _format_segments(segments) -> str:
-    """將 transcript segments 轉為去重複的純文字"""
-    seen: set[str] = set()
+def _download_subtitle(url: str, tmp_dir: str, lang: str, auto: bool) -> str | None:
+    """下載特定語言字幕並轉為純文字，失敗則回傳 None"""
+    flag = "--write-auto-subs" if auto else "--write-subs"
+    subprocess.run(
+        [
+            "yt-dlp",
+            flag,
+            "--sub-langs", lang,
+            "--sub-format", "vtt",
+            "--skip-download",
+            "--output", os.path.join(tmp_dir, "subtitle"),
+            url,
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    vtt_files = list(Path(tmp_dir).glob("*.vtt"))
+    if not vtt_files:
+        return None
+
+    raw = vtt_files[0].read_text(encoding="utf-8")
+    # 清掉已下載的 vtt，避免下一語言誤判
+    vtt_files[0].unlink()
+    return _vtt_to_text(raw)
+
+
+def _vtt_to_text(vtt: str) -> str:
+    """將 WebVTT 格式轉為純文字，去除時間碼和重複行"""
     lines = []
-    for seg in segments:
-        text = seg["text"].strip().replace("\n", " ") if isinstance(seg, dict) else seg.text.strip().replace("\n", " ")
-        if text and text not in seen:
-            seen.add(text)
-            lines.append(text)
+    seen = set()
+    for line in vtt.splitlines():
+        line = line.strip()
+        if (
+            not line
+            or line.startswith("WEBVTT")
+            or line.startswith("NOTE")
+            or "-->" in line
+            or line.isdigit()
+        ):
+            continue
+        line = re.sub(r"<[^>]+>", "", line).strip()
+        if line and line not in seen:
+            seen.add(line)
+            lines.append(line)
+
     return "\n".join(lines)
