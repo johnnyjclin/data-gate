@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://your-github-username.github.io/datagate/</loc>
+         <loc>https://johnnyjclin.github.io/datagate/</loc>
          <lastmod>2026-04-17</lastmod>
     </url>
     <url>
-         <loc>https://your-github-username.github.io/datagate/channels/</loc>
+         <loc>https://johnnyjclin.github.io/datagate/submit/</loc>
          <lastmod>2026-04-17</lastmod>
     </url>
     <url>
-         <loc>https://your-github-username.github.io/datagate/channels/shuaisoserious/</loc>
+         <loc>https://johnnyjclin.github.io/datagate/channels/</loc>
          <lastmod>2026-04-17</lastmod>
     </url>
     <url>
-         <loc>https://your-github-username.github.io/datagate/channels/shuaisoserious/LIxZfkVYz04/</loc>
+         <loc>https://johnnyjclin.github.io/datagate/channels/shuaisoserious/</loc>
+         <lastmod>2026-04-17</lastmod>
+    </url>
+    <url>
+         <loc>https://johnnyjclin.github.io/datagate/channels/shuaisoserious/LIxZfkVYz04/</loc>
          <lastmod>2026-04-17</lastmod>
     </url>
 </urlset>
