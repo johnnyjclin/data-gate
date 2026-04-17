@@ -49,7 +49,7 @@ def get_transcript(url: str, tmp_dir: str = None) -> str | None:
     """
     video_id = _extract_video_id(url)
     try:
-        transcript_list = YouTubeTranscriptApi().list_transcripts(video_id)
+        transcript_list = YouTubeTranscriptApi().list(video_id)
 
         # 先找人工字幕
         for lang in _LANG_PRIORITY:
