@@ -10,3 +10,6 @@ __pycache__/
 *.webm
 *.m4a
 .DS_Store
+
+# 本地生成的頻道文章（只存本機）
+docs/channels/*/
